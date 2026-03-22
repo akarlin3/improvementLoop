@@ -100,3 +100,20 @@ def load_project_config(path: Optional[str] = None) -> ProjectConfig:
     filtered = {k: v for k, v in raw.items() if k in valid_fields}
 
     return ProjectConfig(**filtered)
+
+
+_cached_project: ProjectConfig | None = None
+
+
+def get_project_config() -> ProjectConfig:
+    """Return the cached project config, loading it on first call."""
+    global _cached_project
+    if _cached_project is None:
+        _cached_project = load_project_config()
+    return _cached_project
+
+
+def reset_project_config_cache() -> None:
+    """Reset the cached config. Useful for testing."""
+    global _cached_project
+    _cached_project = None
