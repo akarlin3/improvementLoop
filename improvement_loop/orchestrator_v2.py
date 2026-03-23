@@ -1,16 +1,24 @@
 """Improvement-loop orchestrator (v2).
 
-Runs repeated audit > fix > evaluate cycles, stopping when the evaluator
-signals that no further improvements are warranted.
+Runs repeated audit > implement > review > test-and-merge cycles, stopping
+when the evaluator signals that no further improvements are warranted.
 
 All project-specific values are read from ProjectConfig.
+
+Pipeline phases per iteration:
+    1. _phase_audit          — call audit API, parse findings
+    2. _phase_implement      — call apply_fix for each finding on its own branch
+    3. _phase_review         — call reviewer for each implemented finding
+    4. _phase_test_and_merge — run tests, merge approved findings
+    5. _phase_log            — log iteration, evaluate exit condition
 """
 
 import argparse
 import json
 import os
-import sys
-from typing import List
+import subprocess
+from dataclasses import dataclass, field
+from typing import List, Optional
 
 from improvement_loop import loop_tracker
 from improvement_loop import git_utils
@@ -18,12 +26,46 @@ from improvement_loop.evaluator import Finding
 from improvement_loop.agents._api import api_call_with_retry as _api_call_with_retry
 from improvement_loop.agents.auditor import get_audit_system_prompt, collect_source_files
 from improvement_loop.agents.implementer import apply_fix
+from improvement_loop.agents.reviewer import review as _review
 from improvement_loop.loop_config import get_config as _get_loop_config
 from improvement_loop.project_config import get_project_config
 
 # Repo root is one level up from this file's directory
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+
+# ---------------------------------------------------------------------------
+# State dataclasses
+# ---------------------------------------------------------------------------
+
+@dataclass
+class FindingState:
+    """Tracks a single finding through the pipeline phases."""
+
+    finding: Finding
+    diff: str = ""
+    review_verdict: str = ""      # APPROVE / REQUEST_CHANGES / REJECT
+    review_detail: Optional[dict] = None
+    tests_passed: Optional[bool] = None
+    merged: bool = False
+    error: Optional[str] = None
+
+
+@dataclass
+class IterationState:
+    """Shared state for one iteration of the loop."""
+
+    iteration: int
+    dry_run: bool
+    audit_output: str = ""
+    finding_states: List[FindingState] = field(default_factory=list)
+    original_branch: str = ""
+    all_tests_passed: bool = True
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 def _get_critical_flags() -> frozenset:
     """Return the set of critical flags from ProjectConfig."""
@@ -32,6 +74,19 @@ def _get_critical_flags() -> frozenset:
         return frozenset(pcfg.critical_flags)
     return frozenset({"LEAKAGE_RISK", "PHI_RISK"})
 
+
+def _get_diff(branch: str, base: str) -> str:
+    """Return the git diff between *base* and *branch*."""
+    result = subprocess.run(
+        ["git", "diff", f"{base}...{branch}"],
+        capture_output=True, text=True, check=False,
+    )
+    return result.stdout
+
+
+# ---------------------------------------------------------------------------
+# Phase 1: Audit
+# ---------------------------------------------------------------------------
 
 def _run_audit(iteration: int, context: str, dry_run: bool) -> str:
     """Run or simulate a code audit.  Returns raw audit text."""
@@ -133,94 +188,242 @@ def _parse_findings(audit_output: str, dry_run: bool) -> List[Finding]:
     return findings
 
 
-def _apply_fixes(findings: List[Finding], dry_run: bool) -> bool:
-    """Apply fixes for each finding on its own branch. Returns True if all tests pass."""
-    if dry_run:
-        return True
+def _phase_audit(state: IterationState) -> None:
+    """Phase 1: audit the codebase and parse findings."""
+    print(f"\n[1/5] Gathering context from prior iterations...")
+    context = loop_tracker.get_context_for_next_iteration()
 
-    if not findings:
-        return True
+    print(f"[2/5] Running code audit via Claude API...")
+    state.audit_output = _run_audit(state.iteration, context, state.dry_run)
+    print(f"       Audit response: {len(state.audit_output)} chars")
 
-    original_branch = git_utils.current_branch()
-    critical_flags = _get_critical_flags()
-    all_passed = True
+    findings = _parse_findings(state.audit_output, state.dry_run)
+    print(f"       Found {len(findings)} valid finding(s)")
+    for j, f in enumerate(findings, 1):
+        print(f"       {j}. [{f.dimension}] {f.description[:80]}"
+              f" (importance={f.importance})")
 
-    for finding in findings:
-        print(f"\n--- Applying fix: {finding.branch_name} ---")
+    state.finding_states = [FindingState(finding=f) for f in findings]
+
+
+# ---------------------------------------------------------------------------
+# Phase 2: Implement
+# ---------------------------------------------------------------------------
+
+def _phase_implement(state: IterationState) -> None:
+    """Phase 2: generate and apply a fix for each finding on its own branch."""
+    if state.dry_run or not state.finding_states:
+        return
+
+    print(f"\n[3/5] Implementing fixes...")
+    state.original_branch = git_utils.current_branch()
+
+    for fs in state.finding_states:
+        finding = fs.finding
+        print(f"\n--- Implementing: {finding.branch_name} ---")
         print(f"    {finding.dimension}: {finding.description}")
 
         try:
             if git_utils.branch_exists(finding.branch_name):
                 print(f"    Branch {finding.branch_name} already exists, skipping")
                 finding.status = "pending"
+                fs.error = "branch already exists"
                 continue
 
-            git_utils.create_branch(finding.branch_name, base=original_branch)
-
-            # Use Claude to generate and apply the fix
+            git_utils.create_branch(finding.branch_name, base=state.original_branch)
             apply_fix(finding, repo_root=REPO_ROOT)
-
-            # Commit changes
             git_utils.commit_all(
                 f"improvement: {finding.dimension} — {finding.description[:60]}"
             )
+            finding.status = "implemented"
 
-            # Run tests
-            print("    Running syntax check...")
-            if not git_utils.run_syntax_check():
-                print("    Syntax error detected — skipping tests")
-                finding.status = "pending"
-                all_passed = False
-                continue
-
-            print("    Running Python tests...")
-            py_ok = git_utils.run_python_tests()
-
-            if py_ok:
-                print("    Tests passed on branch")
-
-                print(f"    Attempting merge: {finding.branch_name}")
-                try:
-                    git_utils.merge_branch(
-                        finding.branch_name, target=original_branch,
-                        delete_after=True,
-                    )
-                    finding.status = "merged"
-                    print(f"    Merged: {finding.branch_name}")
-
-                    # Post-merge sanity check
-                    print(f"    Post-merge test run on {original_branch}")
-                    if not git_utils.run_syntax_check():
-                        print(f"    Post-merge syntax error — merge may have introduced issues")
-                        all_passed = False
-                        continue
-                    post_ok = git_utils.run_python_tests()
-                    if post_ok:
-                        print(f"    Post-merge tests passed")
-                    else:
-                        print(f"    Post-merge tests FAILED — merge may have introduced issues")
-                        all_passed = False
-                except Exception as e:
-                    print(f"    Merge failed: {finding.branch_name} — {e}")
-                    finding.status = "implemented"
-                    all_passed = False
-            else:
-                finding.status = "pending"
-                all_passed = False
-                print("    Tests failed — fix needs review")
+            # Capture diff for reviewer
+            fs.diff = _get_diff(finding.branch_name, state.original_branch)
 
         except Exception as e:
-            print(f"    Error applying fix: {e}")
+            print(f"    Error implementing fix: {e}")
             finding.status = "pending"
-            all_passed = False
+            fs.error = str(e)
+            state.all_tests_passed = False
         finally:
             try:
-                git_utils.checkout(original_branch)
+                git_utils.checkout(state.original_branch)
             except Exception:
                 pass
 
-    return all_passed
 
+# ---------------------------------------------------------------------------
+# Phase 3: Review
+# ---------------------------------------------------------------------------
+
+def _phase_review(state: IterationState) -> None:
+    """Phase 3: review each implemented finding via the reviewer agent.
+
+    Verdicts:
+        APPROVE          — proceed to test and merge
+        REQUEST_CHANGES  — skip (leave branch for manual follow-up)
+        REJECT           — delete the branch
+
+    Critical flags from ProjectConfig force rejection.
+    """
+    if state.dry_run or not state.finding_states:
+        return
+
+    print(f"\n[4/5] Reviewing patches...")
+    critical_flags = _get_critical_flags()
+
+    for fs in state.finding_states:
+        finding = fs.finding
+        if finding.status != "implemented":
+            continue
+
+        print(f"\n--- Reviewing: {finding.branch_name} ---")
+
+        try:
+            result = _review(finding, diff=fs.diff, repo_root=REPO_ROOT)
+            fs.review_detail = result
+            verdict = result.get("verdict", "REQUEST_CHANGES")
+            fs.review_verdict = verdict
+
+            # Critical-flag override: if the review mentions any critical
+            # flag keywords, force rejection regardless of the verdict
+            issues_text = " ".join(result.get("issues", []))
+            reasoning = result.get("reasoning", "")
+            combined_text = (issues_text + " " + reasoning).upper()
+            flagged = {f for f in critical_flags if f in combined_text}
+            if flagged:
+                print(f"    Critical flags detected: {flagged} — forcing REJECT")
+                fs.review_verdict = "REJECT"
+                verdict = "REJECT"
+
+            print(f"    Verdict: {verdict}")
+            if result.get("issues"):
+                for issue in result["issues"][:3]:
+                    print(f"      - {issue[:100]}")
+
+            if verdict == "REJECT":
+                print(f"    Deleting branch: {finding.branch_name}")
+                finding.status = "pending"
+                try:
+                    git_utils.checkout(state.original_branch)
+                    subprocess.run(
+                        ["git", "branch", "-D", finding.branch_name],
+                        check=False, capture_output=True,
+                    )
+                except Exception:
+                    pass
+            elif verdict == "REQUEST_CHANGES":
+                print(f"    Skipping — branch left for manual follow-up")
+                finding.status = "pending"
+
+        except Exception as e:
+            print(f"    Review error: {e} — treating as REQUEST_CHANGES")
+            fs.review_verdict = "REQUEST_CHANGES"
+            finding.status = "pending"
+
+
+# ---------------------------------------------------------------------------
+# Phase 4: Test and merge
+# ---------------------------------------------------------------------------
+
+def _phase_test_and_merge(state: IterationState) -> None:
+    """Phase 4: run tests and merge approved findings."""
+    if state.dry_run or not state.finding_states:
+        return
+
+    print(f"\n[5/5] Testing and merging approved patches...")
+
+    for fs in state.finding_states:
+        finding = fs.finding
+        if fs.review_verdict != "APPROVE":
+            continue
+
+        print(f"\n--- Testing: {finding.branch_name} ---")
+
+        try:
+            git_utils.checkout(finding.branch_name)
+
+            # Syntax check
+            print("    Running syntax check...")
+            if not git_utils.run_syntax_check():
+                print("    Syntax error detected — skipping")
+                finding.status = "pending"
+                fs.tests_passed = False
+                state.all_tests_passed = False
+                continue
+
+            # Full test suite
+            print("    Running tests...")
+            py_ok = git_utils.run_python_tests()
+            fs.tests_passed = py_ok
+
+            if not py_ok:
+                finding.status = "pending"
+                state.all_tests_passed = False
+                print("    Tests failed — fix needs review")
+                continue
+
+            print("    Tests passed on branch")
+
+            # Merge
+            print(f"    Merging: {finding.branch_name}")
+            try:
+                git_utils.merge_branch(
+                    finding.branch_name, target=state.original_branch,
+                    delete_after=True,
+                )
+                finding.status = "merged"
+                fs.merged = True
+                print(f"    Merged: {finding.branch_name}")
+
+                # Post-merge sanity check
+                print(f"    Post-merge test run on {state.original_branch}")
+                if not git_utils.run_syntax_check():
+                    print("    Post-merge syntax error — merge may have introduced issues")
+                    state.all_tests_passed = False
+                    continue
+                post_ok = git_utils.run_python_tests()
+                if post_ok:
+                    print("    Post-merge tests passed")
+                else:
+                    print("    Post-merge tests FAILED — merge may have introduced issues")
+                    state.all_tests_passed = False
+            except Exception as e:
+                print(f"    Merge failed: {finding.branch_name} — {e}")
+                finding.status = "implemented"
+                state.all_tests_passed = False
+
+        except Exception as e:
+            print(f"    Error during test/merge: {e}")
+            finding.status = "pending"
+            state.all_tests_passed = False
+        finally:
+            try:
+                git_utils.checkout(state.original_branch)
+            except Exception:
+                pass
+
+
+# ---------------------------------------------------------------------------
+# Phase 5: Log
+# ---------------------------------------------------------------------------
+
+def _phase_log(state: IterationState) -> dict:
+    """Phase 5: log the iteration and evaluate exit condition."""
+    findings = [fs.finding for fs in state.finding_states]
+
+    entry = loop_tracker.log_iteration(
+        audit_output=state.audit_output,
+        findings=findings,
+        tests_passed=state.all_tests_passed,
+        dry_run=state.dry_run,
+    )
+    return entry
+
+
+# ---------------------------------------------------------------------------
+# Main loop
+# ---------------------------------------------------------------------------
 
 def run_loop(max_iterations: int = 10, dry_run: bool = False) -> list:
     """Execute the improvement loop up to *max_iterations* times.
@@ -244,31 +447,22 @@ def run_loop(max_iterations: int = 10, dry_run: bool = False) -> list:
         print(f"  ITERATION {i}/{max_iterations}")
         print(f"{'─'*60}")
 
-        print(f"\n[1/5] Gathering context from prior iterations...")
-        context = loop_tracker.get_context_for_next_iteration()
+        state = IterationState(iteration=i, dry_run=dry_run)
 
-        print(f"[2/5] Running code audit via Claude API...")
-        audit_output = _run_audit(i, context, dry_run)
-        print(f"       Audit response: {len(audit_output)} chars")
+        # Phase 1: Audit
+        _phase_audit(state)
 
-        print(f"[3/5] Parsing findings...")
-        findings = _parse_findings(audit_output, dry_run)
-        print(f"       Found {len(findings)} valid finding(s)")
-        for j, f in enumerate(findings, 1):
-            print(f"       {j}. [{f.dimension}] {f.description[:80]}"
-                  f" (importance={f.importance})")
+        # Phase 2: Implement
+        _phase_implement(state)
 
-        print(f"[4/5] Applying fixes and running tests...")
-        tests_passed = _apply_fixes(findings, dry_run)
+        # Phase 3: Review
+        _phase_review(state)
 
-        print(f"\n[5/5] Logging iteration and evaluating exit condition...")
+        # Phase 4: Test and merge
+        _phase_test_and_merge(state)
 
-        entry = loop_tracker.log_iteration(
-            audit_output=audit_output,
-            findings=findings,
-            tests_passed=tests_passed,
-            dry_run=dry_run,
-        )
+        # Phase 5: Log
+        entry = _phase_log(state)
         entries.append(entry)
 
         if entry["exit_condition_met"]:

@@ -1,5 +1,10 @@
 """Reviewer agent — evaluates proposed patches for correctness and quality."""
 
+import json
+from typing import Optional
+
+from improvement_loop.agents._api import api_call_with_retry
+from improvement_loop.loop_config import get_config
 from improvement_loop.project_config import get_project_config
 
 
@@ -15,11 +20,17 @@ You are a code reviewer. Evaluate proposed patches for:
 - Adherence to existing project conventions
 - No modifications to read-only directories
 
-Provide a structured review with:
-1. A summary of what the patch does
-2. Issues found (if any)
-3. A verdict: APPROVE, REQUEST_CHANGES, or REJECT
-"""
+Return a JSON object with exactly these keys:
+{
+  "verdict": "APPROVE" | "REQUEST_CHANGES" | "REJECT",
+  "summary": "<what the patch does>",
+  "issues": ["<issue 1>", ...],
+  "reasoning": "<1-3 sentence justification>"
+}
+
+Return ONLY the JSON object — no markdown fences, no commentary."""
+
+VALID_VERDICTS = ("APPROVE", "REQUEST_CHANGES", "REJECT")
 
 
 def get_review_system_prompt() -> str:
@@ -35,3 +46,82 @@ def get_review_system_prompt() -> str:
                   f"patches must not modify files in: {read_only_str}"
 
     return prompt
+
+
+def _parse_review(raw: str) -> Optional[dict]:
+    """Parse and validate a review JSON response."""
+    text = raw.strip()
+    if text.startswith("```"):
+        parts = text.split("```")
+        if len(parts) >= 3:
+            text = parts[1]
+        else:
+            text = parts[1] if len(parts) > 1 else text
+        if text.startswith("json"):
+            text = text[4:]
+        text = text.strip()
+
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+
+    verdict = data.get("verdict", "").upper()
+    if verdict not in VALID_VERDICTS:
+        return None
+
+    data["verdict"] = verdict
+    return data
+
+
+def review(
+    finding,
+    diff: str,
+    repo_root: str | None = None,
+) -> dict:
+    """Review a patch for a single finding.
+
+    Parameters
+    ----------
+    finding : Finding
+        The evaluator Finding that produced the patch.
+    diff : str
+        The git diff of the patch to review.
+    repo_root : str, optional
+        Repository root (unused here but kept for interface consistency).
+
+    Returns
+    -------
+    dict
+        Keys: ``verdict`` (APPROVE/REQUEST_CHANGES/REJECT), ``summary``,
+        ``issues``, ``reasoning``.  On parse failure, returns a dict with
+        verdict ``REQUEST_CHANGES`` and an explanation.
+    """
+    cfg = get_config()
+    user_message = (
+        f"## Finding\n"
+        f"Dimension: {finding.dimension}\n"
+        f"File: {finding.file}\n"
+        f"Description: {finding.description}\n"
+        f"Proposed fix: {finding.fix}\n\n"
+        f"## Diff\n```\n{diff}\n```\n\n"
+        f"Review this patch and return your verdict as JSON."
+    )
+
+    raw = api_call_with_retry({
+        "model": cfg.fix_model,
+        "max_tokens": 2000,
+        "system": get_review_system_prompt(),
+        "messages": [{"role": "user", "content": user_message}],
+    })
+
+    result = _parse_review(raw)
+    if result is None:
+        return {
+            "verdict": "REQUEST_CHANGES",
+            "summary": "Review parse failure",
+            "issues": ["Could not parse reviewer response as valid JSON"],
+            "reasoning": f"Raw response: {raw[:200]}",
+        }
+
+    return result
