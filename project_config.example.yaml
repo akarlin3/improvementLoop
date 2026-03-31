@@ -24,7 +24,10 @@ skip_dirs: [".git", "__pycache__"]     # Dirs to skip when indexing / scanning
 key_files: []                          # Important files the auditor should always review
 
 # --- API ---
-anthropic_api_key:                   # If empty, falls back to loop config / ANTHROPIC_API_KEY env var
+anthropic_api_key:                   # If empty, falls back to loop config
+audit_model: "claude-opus-4-6"       # If empty, falls back to loop config default
+fix_model: "claude-opus-4-6"         # If empty, falls back to loop config default
+judge_model: "claude-opus-4-6"       # If empty, falls back to loop config default
 
 # --- Prompts (multi-line YAML strings recommended) ---
 prompts:

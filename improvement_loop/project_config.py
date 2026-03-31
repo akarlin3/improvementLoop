@@ -42,7 +42,10 @@ class ProjectConfig:
         default_factory=lambda: ["LEAKAGE_RISK", "PHI_RISK"]
     )
     forbidden_patterns: List[str] = field(default_factory=list)
-    anthropic_api_key: str = ""  # If empty, falls back to loop config / env var
+    anthropic_api_key: str = ""  # If empty, falls back to loop config
+    audit_model: str = ""  # If empty, falls back to loop config default
+    fix_model: str = ""  # If empty, falls back to loop config default
+    judge_model: str = ""  # If empty, falls back to loop config default
     collection_name: str = "codebase_index"
     skip_extensions: List[str] = field(
         default_factory=lambda: [".png", ".jpg", ".pdf"]

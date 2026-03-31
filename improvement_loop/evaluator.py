@@ -244,7 +244,7 @@ def score_audit(audit_output: str, dry_run: bool = False) -> dict:
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             response = client.messages.create(
-                model=cfg.judge_model,
+                model=get_project_config().judge_model or cfg.judge_model,
                 max_tokens=cfg.judge_max_tokens,
                 system=full_prompt,
                 messages=[

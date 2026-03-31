@@ -92,6 +92,10 @@ forbidden_patterns:
   - "ssn"
   - '\bprint\s*\(.*(password|secret|key)'
 
+audit_model: "claude-opus-4-6"
+fix_model: "claude-opus-4-6"
+judge_model: "claude-opus-4-6"
+
 collection_name: "pancdata3_index"
 
 skip_extensions:

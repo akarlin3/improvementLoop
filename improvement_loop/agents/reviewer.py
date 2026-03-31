@@ -109,7 +109,7 @@ def review(
     )
 
     raw = api_call_with_retry({
-        "model": cfg.fix_model,
+        "model": get_project_config().fix_model or cfg.fix_model,
         "max_tokens": 2000,
         "system": get_review_system_prompt(),
         "messages": [{"role": "user", "content": user_message}],

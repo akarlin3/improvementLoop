@@ -104,7 +104,7 @@ def _run_audit(iteration: int, context: str, dry_run: bool) -> str:
     )
 
     return _api_call_with_retry({
-        "model": cfg.audit_model,
+        "model": get_project_config().audit_model or cfg.audit_model,
         "max_tokens": cfg.audit_max_tokens,
         "system": get_audit_system_prompt(),
         "messages": [{"role": "user", "content": user_message}],

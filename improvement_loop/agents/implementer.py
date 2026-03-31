@@ -48,7 +48,7 @@ def apply_fix(finding, repo_root: str | None = None) -> None:
 
     cfg = get_config()
     new_content = api_call_with_retry({
-        "model": cfg.fix_model,
+        "model": get_project_config().fix_model or cfg.fix_model,
         "max_tokens": cfg.fix_max_tokens,
         "system": get_fix_system_prompt(),
         "messages": [{
