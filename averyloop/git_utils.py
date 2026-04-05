@@ -11,7 +11,7 @@ import subprocess
 import sys
 from typing import List
 
-from improvement_loop.project_config import get_project_config
+from averyloop.project_config import get_project_config
 
 # Repository root — the current working directory (the target project).
 # Previously __file__-relative, which broke when installed as a pip package.

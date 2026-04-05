@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from improvement_loop.project_config import ProjectConfig, reset_project_config_cache
-from improvement_loop.loop_config import reset_config
+from averyloop.project_config import ProjectConfig, reset_project_config_cache
+from averyloop.loop_config import reset_config
 
 
 @pytest.fixture(autouse=True)
@@ -39,6 +39,6 @@ def minimal_project_config(monkeypatch):
         key_files=[],
         collection_name="test_index",
     )
-    import improvement_loop.project_config as pc_mod
+    import averyloop.project_config as pc_mod
     monkeypatch.setattr(pc_mod, "_cached_project", cfg)
     return cfg

@@ -4,8 +4,8 @@ import json
 import pytest
 from unittest.mock import patch
 
-from improvement_loop.evaluator import Finding
-from improvement_loop import loop_tracker
+from averyloop.evaluator import Finding
+from averyloop import loop_tracker
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -48,7 +48,7 @@ def _isolate_log(tmp_path, monkeypatch):
 
 # ── log_iteration derives branches ──────────────────────────────────────────
 
-@patch("improvement_loop.loop_tracker.score_audit", return_value=FAKE_SCORES)
+@patch("averyloop.loop_tracker.score_audit", return_value=FAKE_SCORES)
 def test_log_iteration_derives_branches_created(mock_score):
     findings = [
         _make_finding("improvement/branch-a", status="pending"),
@@ -65,7 +65,7 @@ def test_log_iteration_derives_branches_created(mock_score):
     ]
 
 
-@patch("improvement_loop.loop_tracker.score_audit", return_value=FAKE_SCORES)
+@patch("averyloop.loop_tracker.score_audit", return_value=FAKE_SCORES)
 def test_log_iteration_derives_branches_merged(mock_score):
     findings = [
         _make_finding("improvement/branch-a", status="merged"),
@@ -83,7 +83,7 @@ def test_log_iteration_derives_branches_merged(mock_score):
     ]
 
 
-@patch("improvement_loop.loop_tracker.score_audit", return_value=FAKE_SCORES)
+@patch("averyloop.loop_tracker.score_audit", return_value=FAKE_SCORES)
 def test_log_iteration_no_merged_findings(mock_score):
     findings = [
         _make_finding("improvement/branch-x", status="pending"),
@@ -97,7 +97,7 @@ def test_log_iteration_no_merged_findings(mock_score):
     assert entry["branches_merged"] == []
 
 
-@patch("improvement_loop.loop_tracker.score_audit", return_value=FAKE_SCORES)
+@patch("averyloop.loop_tracker.score_audit", return_value=FAKE_SCORES)
 def test_log_iteration_all_merged(mock_score):
     findings = [
         _make_finding("improvement/branch-a", status="merged"),
@@ -120,7 +120,7 @@ def test_log_iteration_all_merged(mock_score):
 
 # ── get_pending_branches ────────────────────────────────────────────────────
 
-@patch("improvement_loop.loop_tracker.score_audit", return_value=FAKE_SCORES)
+@patch("averyloop.loop_tracker.score_audit", return_value=FAKE_SCORES)
 def test_get_pending_branches_mixed_statuses(mock_score):
     findings = [
         _make_finding("improvement/merged-one", status="merged"),
@@ -134,7 +134,7 @@ def test_get_pending_branches_mixed_statuses(mock_score):
     assert pending == ["improvement/pending-one", "improvement/impl-one"]
 
 
-@patch("improvement_loop.loop_tracker.score_audit", return_value=FAKE_SCORES)
+@patch("averyloop.loop_tracker.score_audit", return_value=FAKE_SCORES)
 def test_get_pending_branches_all_merged(mock_score):
     findings = [
         _make_finding("improvement/done-a", status="merged"),
@@ -150,7 +150,7 @@ def test_get_pending_branches_empty_log():
     assert loop_tracker.get_pending_branches() == []
 
 
-@patch("improvement_loop.loop_tracker.score_audit", return_value=FAKE_SCORES)
+@patch("averyloop.loop_tracker.score_audit", return_value=FAKE_SCORES)
 def test_get_pending_branches_uses_latest_iteration(mock_score):
     findings1 = [_make_finding("improvement/old-pending", status="pending")]
     loop_tracker.log_iteration(
@@ -166,7 +166,7 @@ def test_get_pending_branches_uses_latest_iteration(mock_score):
 
 # ── mark_finding_merged ─────────────────────────────────────────────────────
 
-@patch("improvement_loop.loop_tracker.score_audit", return_value=FAKE_SCORES)
+@patch("averyloop.loop_tracker.score_audit", return_value=FAKE_SCORES)
 def test_mark_finding_merged_updates_status(mock_score):
     findings = [
         _make_finding("improvement/to-merge", status="pending"),
@@ -183,7 +183,7 @@ def test_mark_finding_merged_updates_status(mock_score):
     assert "improvement/to-merge" in log[0]["branches_merged"]
 
 
-@patch("improvement_loop.loop_tracker.score_audit", return_value=FAKE_SCORES)
+@patch("averyloop.loop_tracker.score_audit", return_value=FAKE_SCORES)
 def test_mark_finding_merged_updates_branches_merged_list(mock_score):
     findings = [
         _make_finding("improvement/br-a", status="merged"),
@@ -204,7 +204,7 @@ def test_mark_finding_merged_updates_branches_merged_list(mock_score):
     ]
 
 
-@patch("improvement_loop.loop_tracker.score_audit", return_value=FAKE_SCORES)
+@patch("averyloop.loop_tracker.score_audit", return_value=FAKE_SCORES)
 def test_mark_finding_merged_invalid_id_raises(mock_score):
     findings = [_make_finding("improvement/br-x", status="pending")]
     loop_tracker.log_iteration(
@@ -214,7 +214,7 @@ def test_mark_finding_merged_invalid_id_raises(mock_score):
         loop_tracker.mark_finding_merged(iteration=1, finding_id="nonexistent")
 
 
-@patch("improvement_loop.loop_tracker.score_audit", return_value=FAKE_SCORES)
+@patch("averyloop.loop_tracker.score_audit", return_value=FAKE_SCORES)
 def test_mark_finding_merged_wrong_iteration_raises(mock_score):
     findings = [_make_finding("improvement/br-y", status="pending")]
     entry = loop_tracker.log_iteration(
@@ -227,7 +227,7 @@ def test_mark_finding_merged_wrong_iteration_raises(mock_score):
 
 # ── get_unmerged_findings ────────────────────────────────────────────────────
 
-@patch("improvement_loop.loop_tracker.score_audit", return_value=FAKE_SCORES)
+@patch("averyloop.loop_tracker.score_audit", return_value=FAKE_SCORES)
 def test_get_unmerged_findings_returns_non_merged(mock_score):
     findings = [
         _make_finding("improvement/uf-a", status="merged"),
@@ -244,7 +244,7 @@ def test_get_unmerged_findings_returns_non_merged(mock_score):
     assert "improvement/uf-c" in branch_names
 
 
-@patch("improvement_loop.loop_tracker.score_audit", return_value=FAKE_SCORES)
+@patch("averyloop.loop_tracker.score_audit", return_value=FAKE_SCORES)
 def test_get_unmerged_findings_all_merged(mock_score):
     findings = [
         _make_finding("improvement/all-merged-a", status="merged"),
@@ -260,7 +260,7 @@ def test_get_unmerged_findings_nonexistent_iteration():
     assert loop_tracker.get_unmerged_findings(iteration=42) == []
 
 
-@patch("improvement_loop.loop_tracker.score_audit", return_value=FAKE_SCORES)
+@patch("averyloop.loop_tracker.score_audit", return_value=FAKE_SCORES)
 def test_get_unmerged_findings_after_mark_merged(mock_score):
     findings = [
         _make_finding("improvement/mark-a", status="pending"),
@@ -281,7 +281,7 @@ def test_get_unmerged_findings_after_mark_merged(mock_score):
 
 # ── _print_iteration_summary shows unmerged ─────────────────────────────────
 
-@patch("improvement_loop.loop_tracker.score_audit", return_value=FAKE_SCORES)
+@patch("averyloop.loop_tracker.score_audit", return_value=FAKE_SCORES)
 def test_summary_shows_unmerged_branches(mock_score, capsys):
     findings = [
         _make_finding("improvement/unmerged-show", status="pending"),
@@ -295,9 +295,9 @@ def test_summary_shows_unmerged_branches(mock_score, capsys):
     assert "improvement/unmerged-show" in captured
 
 
-@patch("improvement_loop.loop_tracker.score_audit", return_value=FAKE_SCORES)
+@patch("averyloop.loop_tracker.score_audit", return_value=FAKE_SCORES)
 def test_should_continue_loop_on_evaluation_failed(mock_score):
-    from improvement_loop.evaluator import should_continue_loop
+    from averyloop.evaluator import should_continue_loop
 
     failed_scores = {
         "specificity": 5.0,
@@ -312,7 +312,7 @@ def test_should_continue_loop_on_evaluation_failed(mock_score):
     assert should_continue_loop(failed_scores, findings=[]) is True
 
 
-@patch("improvement_loop.loop_tracker.score_audit", return_value=FAKE_SCORES)
+@patch("averyloop.loop_tracker.score_audit", return_value=FAKE_SCORES)
 def test_summary_no_unmerged_section_when_all_merged(mock_score, capsys):
     findings = [
         _make_finding("improvement/all-m-a", status="merged"),

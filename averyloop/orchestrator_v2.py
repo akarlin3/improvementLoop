@@ -20,15 +20,15 @@ import subprocess
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from improvement_loop import loop_tracker
-from improvement_loop import git_utils
-from improvement_loop.evaluator import Finding
-from improvement_loop.agents._api import api_call_with_retry as _api_call_with_retry
-from improvement_loop.agents.auditor import get_audit_system_prompt, collect_source_files
-from improvement_loop.agents.implementer import apply_fix
-from improvement_loop.agents.reviewer import review as _review
-from improvement_loop.loop_config import get_config as _get_loop_config
-from improvement_loop.project_config import get_project_config
+from averyloop import loop_tracker
+from averyloop import git_utils
+from averyloop.evaluator import Finding
+from averyloop.agents._api import api_call_with_retry as _api_call_with_retry
+from averyloop.agents.auditor import get_audit_system_prompt, collect_source_files
+from averyloop.agents.implementer import apply_fix
+from averyloop.agents.reviewer import review as _review
+from averyloop.loop_config import get_config as _get_loop_config
+from averyloop.project_config import get_project_config
 
 # Repo root is the current working directory (the target project).
 # This was previously __file__-relative, which broke when the package

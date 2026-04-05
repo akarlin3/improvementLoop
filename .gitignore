@@ -6,8 +6,8 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Improvement loop logs
-improvement_loop_log.json
+# AveryLoop logs
+averyloop_log.json
 
 # Environment / secrets
 .env

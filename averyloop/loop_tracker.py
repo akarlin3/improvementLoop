@@ -7,9 +7,9 @@ import sys
 from datetime import datetime
 from typing import List, Optional  # noqa: F401 — used by callers via import
 
-from improvement_loop.evaluator import Finding, score_audit, should_continue_loop
+from averyloop.evaluator import Finding, score_audit, should_continue_loop
 
-LOG_FILE = os.path.join(os.getcwd(), "improvement_loop_log.json")
+LOG_FILE = os.path.join(os.getcwd(), "averyloop_log.json")
 
 
 # ── I/O helpers ──────────────────────────────────────────────────────────────
@@ -91,7 +91,7 @@ def log_iteration(
     exit_condition_met = not should_continue_loop(scores, findings, dry_run=dry_run)
 
     # Use the same importance threshold as the evaluator's exit logic
-    from improvement_loop.loop_config import get_config
+    from averyloop.loop_config import get_config
     importance_threshold = get_config().importance_threshold
 
     entry = {

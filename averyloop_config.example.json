@@ -1,5 +1,5 @@
 {
-    "_comment": "Copy this file to improvement_loop_config.json and customise.",
+    "_comment": "Copy this file to averyloop_config.json and customise.",
 
     "exit_strategy": "both",
     "importance_threshold": 2,

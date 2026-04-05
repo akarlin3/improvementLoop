@@ -3,7 +3,7 @@
 import os
 from typing import List, Optional
 
-from improvement_loop.project_config import get_project_config
+from averyloop.project_config import get_project_config
 
 
 # ---------------------------------------------------------------------------

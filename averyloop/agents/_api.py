@@ -4,8 +4,8 @@ import time
 
 import anthropic  # type: ignore
 
-from improvement_loop.loop_config import get_config
-from improvement_loop.project_config import get_project_config
+from averyloop.loop_config import get_config
+from averyloop.project_config import get_project_config
 
 
 def get_client() -> anthropic.Anthropic:
@@ -21,7 +21,7 @@ def get_client() -> anthropic.Anthropic:
     if not api_key:
         raise ValueError(
             "No anthropic_api_key found in project_config.yaml or "
-            "improvement_loop_config.json. Set it in your project config."
+            "averyloop_config.json. Set it in your project config."
         )
     return anthropic.Anthropic(api_key=api_key)
 

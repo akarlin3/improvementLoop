@@ -31,9 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
-- **API key resolution**: `get_client()` no longer falls back to the `ANTHROPIC_API_KEY` environment variable. The key must be set in `project_config.yaml` or `improvement_loop_config.json`. Existing setups relying on the env var must add `anthropic_api_key` to their project config.
+- **Renamed to AveryLoop**: Package renamed from `code-improvement-loop` / `improvement_loop` to `averyloop`. All imports, config filenames, and the CLI entry point have changed (`averyloop` replaces `improvement-loop`). Config files are now `averyloop_config.json`, `averyloop_project.yaml`, and `averyloop_log.json`.
 
-- **Model config moved to project config**: Model selection now resolves as `project_config.yaml → loop config → built-in default`. Projects previously relying on `improvement_loop_config.json` for model overrides should migrate those values to `project_config.yaml`.
+- **API key resolution**: `get_client()` no longer falls back to the `ANTHROPIC_API_KEY` environment variable. The key must be set in `project_config.yaml` or `averyloop_config.json`. Existing setups relying on the env var must add `anthropic_api_key` to their project config.
+
+- **Model config moved to project config**: Model selection now resolves as `project_config.yaml → loop config → built-in default`. Projects previously relying on `averyloop_config.json` for model overrides should migrate those values to `project_config.yaml`.
 
 - **pancdata3 example removed**: The `examples/pancdata3/project_config.yaml` has been removed; the example config at `project_config.example.yaml` now covers all fields including model selection.
 
@@ -43,7 +45,7 @@ Initial stable release — extracted from [akarlin3/pancData3](https://github.co
 
 ### Added
 
-- **Project configuration** (`project_config.py`): YAML-based per-project config with `ProjectConfig` dataclass, cached loader (`get_project_config()`), and search-path resolution (explicit path → `PROJECT_CONFIG` env var → `./project_config.yaml` → `./improvement_loop_project.yaml`).
+- **Project configuration** (`project_config.py`): YAML-based per-project config with `ProjectConfig` dataclass, cached loader (`get_project_config()`), and search-path resolution (explicit path → `PROJECT_CONFIG` env var → `./project_config.yaml` → `./averyloop_project.yaml`).
 
 - **Loop configuration** (`loop_config.py`): JSON-based loop tuning with `LoopConfig` dataclass covering exit strategy, diminishing returns thresholds, API models/tokens, and orchestrator knobs. Copied from pancData3 with cached singleton pattern.
 
@@ -65,7 +67,7 @@ Initial stable release — extracted from [akarlin3/pancData3](https://github.co
 
 - **Test suite**: 105 tests covering all modules. `conftest.py` provides `minimal_project_config` fixture and automatic cache resets so tests don't depend on pancData3 paths.
 
-- **Package infrastructure**: `pyproject.toml` (name: `code-improvement-loop`, Python >= 3.10), `project_config.example.yaml` with full schema documentation, `examples/pancdata3/project_config.yaml` with real-world clinical genomics config.
+- **Package infrastructure**: `pyproject.toml` (name: `averyloop`, Python >= 3.10), `project_config.example.yaml` with full schema documentation, `examples/pancdata3/project_config.yaml` with real-world clinical genomics config.
 
 ### Changed (relative to pancData3)
 

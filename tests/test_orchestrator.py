@@ -4,8 +4,8 @@ import subprocess
 import pytest
 from unittest.mock import patch
 
-from improvement_loop import loop_tracker
-from improvement_loop import orchestrator_v2
+from averyloop import loop_tracker
+from averyloop import orchestrator_v2
 
 
 @pytest.fixture(autouse=True)
@@ -91,7 +91,7 @@ class TestPhaseTestAndMerge:
     """Tests for _phase_test_and_merge rebase and revert logic."""
 
     def _make_finding_state(self, branch="improvement/test-branch"):
-        from improvement_loop.evaluator import Finding
+        from averyloop.evaluator import Finding
         finding = Finding(
             dimension="correctness",
             file="src/module.py",
@@ -109,7 +109,7 @@ class TestPhaseTestAndMerge:
     @patch.object(orchestrator_v2.git_utils, "run_syntax_check", return_value=True)
     @patch.object(orchestrator_v2.git_utils, "run_python_tests", return_value=True)
     @patch.object(orchestrator_v2.git_utils, "merge_branch")
-    @patch("improvement_loop.orchestrator_v2.subprocess")
+    @patch("averyloop.orchestrator_v2.subprocess")
     def test_post_merge_failure_reverts(
         self, mock_subprocess, mock_merge, mock_tests, mock_syntax, mock_checkout
     ):
@@ -143,7 +143,7 @@ class TestPhaseTestAndMerge:
     @patch.object(orchestrator_v2.git_utils, "run_syntax_check", return_value=True)
     @patch.object(orchestrator_v2.git_utils, "run_python_tests", return_value=True)
     @patch.object(orchestrator_v2.git_utils, "merge_branch")
-    @patch("improvement_loop.orchestrator_v2.subprocess")
+    @patch("averyloop.orchestrator_v2.subprocess")
     def test_rebase_conflict_skips_merge(
         self, mock_subprocess, mock_merge, mock_tests, mock_syntax, mock_checkout
     ):

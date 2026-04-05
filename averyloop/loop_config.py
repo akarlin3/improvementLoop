@@ -1,6 +1,6 @@
 """Configuration for the improvement loop.
 
-Loads from ``improvement_loop_config.json`` at the repo root.  Every field
+Loads from ``averyloop_config.json`` at the repo root.  Every field
 has a built-in default so the file is optional — missing keys are filled in
 automatically (same pattern as ``parse_config.m`` for the MATLAB pipeline).
 """
@@ -10,7 +10,7 @@ import os
 from dataclasses import dataclass, fields
 from typing import Literal
 
-CONFIG_PATH = os.path.join(os.getcwd(), "improvement_loop_config.json")
+CONFIG_PATH = os.path.join(os.getcwd(), "averyloop_config.json")
 
 
 @dataclass

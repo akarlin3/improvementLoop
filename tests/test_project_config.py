@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from improvement_loop.project_config import ProjectConfig, load_project_config
+from averyloop.project_config import ProjectConfig, load_project_config
 
 
 class TestProjectConfigDefaults:
@@ -73,10 +73,10 @@ class TestLoadProjectConfig:
         cfg = load_project_config()
         assert cfg.name == "cwd-project"
 
-    def test_load_from_cwd_improvement_loop_project(self, tmp_path, monkeypatch):
+    def test_load_from_cwd_averyloop_project(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         monkeypatch.delenv("PROJECT_CONFIG", raising=False)
-        (tmp_path / "improvement_loop_project.yaml").write_text(
+        (tmp_path / "averyloop_project.yaml").write_text(
             "name: alt-name\n"
         )
         cfg = load_project_config()

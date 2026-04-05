@@ -4,7 +4,7 @@
 #   1. Explicit path passed to load_project_config()
 #   2. PROJECT_CONFIG environment variable
 #   3. ./project_config.yaml
-#   4. ./improvement_loop_project.yaml
+#   4. ./averyloop_project.yaml
 
 # --- Project metadata ---
 name: "my-project"                     # Short project name

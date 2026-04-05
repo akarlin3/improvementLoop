@@ -3,9 +3,9 @@
 import json
 from typing import Optional
 
-from improvement_loop.agents._api import api_call_with_retry
-from improvement_loop.loop_config import get_config
-from improvement_loop.project_config import get_project_config
+from averyloop.agents._api import api_call_with_retry
+from averyloop.loop_config import get_config
+from averyloop.project_config import get_project_config
 
 
 # ---------------------------------------------------------------------------

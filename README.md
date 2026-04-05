@@ -1,4 +1,4 @@
-# Code Improvement Loop
+# AveryLoop
 
 An autonomous code audit → implement → review → merge pipeline powered by Claude. Uses specialized LLM agents (auditor, implementer, reviewer) with RAG-based codebase retrieval to continuously improve any code repository.
 
@@ -17,15 +17,15 @@ An autonomous code audit → implement → review → merge pipeline powered by 
 From source (editable):
 
 ```bash
-git clone https://github.com/akarlin3/improvement_loop.git
-cd improvement_loop
+git clone https://github.com/akarlin3/averyloop.git
+cd averyloop
 pip install -e ".[test]"
 ```
 
 From PyPI (when published):
 
 ```bash
-pip install code-improvement-loop
+pip install averyloop
 ```
 
 ### Requirements
@@ -43,17 +43,16 @@ cp project_config.example.yaml project_config.yaml
 # 2. Edit it with your repo's source directories, test command, and prompts
 #    (see Configuration below)
 
-# 3. Set your API key
-export ANTHROPIC_API_KEY=your-key
+# 3. Set your API key in project_config.yaml (anthropic_api_key field)
 
 # 4. Run a single iteration to test
-improvement-loop --single-iteration
+averyloop --single-iteration
 
 # 5. Run the full loop (up to 10 iterations by default)
-improvement-loop
+averyloop
 
 # 6. Dry run (no API calls, no code changes — validates setup)
-improvement-loop --dry-run
+averyloop --dry-run
 ```
 
 ## Configuration
@@ -67,7 +66,7 @@ Controls what gets audited, how tests run, and what prompts the agents use. The 
 1. Explicit path passed to `load_project_config()`
 2. `PROJECT_CONFIG` environment variable
 3. `./project_config.yaml`
-4. `./improvement_loop_project.yaml`
+4. `./averyloop_project.yaml`
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -82,6 +81,10 @@ Controls what gets audited, how tests run, and what prompts the agents use. The 
 | `read_only_dirs` | list | `[]` | Directories the loop may read but must never modify |
 | `skip_dirs` | list | `[".git", "__pycache__"]` | Directories to skip when indexing/scanning |
 | `key_files` | list | `[]` | Important files the auditor should always review |
+| `anthropic_api_key` | string | `""` | API key (falls back to loop config) |
+| `audit_model` | string | `""` | Model for audits (falls back to loop config default) |
+| `fix_model` | string | `""` | Model for fixes (falls back to loop config default) |
+| `judge_model` | string | `""` | Model for scoring (falls back to loop config default) |
 | `collection_name` | string | `"codebase_index"` | ChromaDB collection name |
 | `skip_extensions` | list | `[".png", ".jpg", ".pdf"]` | File extensions to skip when indexing |
 
@@ -104,7 +107,7 @@ Controls what gets audited, how tests run, and what prompts the agents use. The 
 
 See [`project_config.example.yaml`](project_config.example.yaml) for the full schema with inline comments.
 
-### `improvement_loop_config.json` — Loop Tuning
+### `averyloop_config.json` — Loop Tuning
 
 Controls API models, token limits, exit strategy, and diminishing returns thresholds. All fields have sensible defaults — this file is optional.
 
@@ -145,7 +148,7 @@ Controls API models, token limits, exit strategy, and diminishing returns thresh
 | Agent | Module | Role |
 |---|---|---|
 | **Auditor** | `agents/auditor.py` | Scans the codebase and returns structured JSON findings with file, line, severity, and suggested fix |
-| **Implementer** | Built into orchestrator | Takes a finding and the original file, returns the complete updated file |
+| **Implementer** | `agents/implementer.py` | Takes a finding and the original file, returns the complete updated file |
 | **Reviewer** | `agents/reviewer.py` | Evaluates patches for correctness, test coverage, and convention adherence |
 | **Judge** | `evaluator.py` | Scores the audit on 6 dimensions (0-10 each), returns flags for safety issues |
 
@@ -175,7 +178,7 @@ The loop stops when one of these is met:
 
 ## Adapting to Your Project
 
-To use the improvement loop on a new codebase:
+To use AveryLoop on a new codebase:
 
 ### 1. Define your source layout
 
@@ -223,13 +226,6 @@ forbidden_patterns:
   - '\beval\s*\('
 ```
 
-### 4. Example: pancData3
-
-See [`examples/pancdata3/project_config.yaml`](examples/pancdata3/project_config.yaml) for a real-world configuration used on a clinical genomics analysis pipeline, including:
-- Domain-specific audit prompts for data leakage and PHI protection
-- Calibration examples anchored to medical-imaging concerns
-- Forbidden patterns for patient identifiers
-
 ## Troubleshooting
 
 ### "No module named 'anthropic'"
@@ -238,7 +234,7 @@ Install dependencies: `pip install -e ".[test]"`
 
 ### Loop exits immediately
 
-Check `improvement_loop_log.json` for the exit reason. Common causes:
+Check `averyloop_log.json` for the exit reason. Common causes:
 - All findings below `importance_threshold` (default: 2)
 - Audit coverage score above `min_coverage_score` (default: 6.0)
 - No findings returned by the auditor (check your `source_dirs` and `key_files`)
@@ -246,7 +242,7 @@ Check `improvement_loop_log.json` for the exit reason. Common causes:
 ### Rate limit errors
 
 The loop retries automatically with exponential backoff. If persistent:
-- Increase `retry_base_delay` in `improvement_loop_config.json`
+- Increase `retry_base_delay` in `averyloop_config.json`
 - Reduce `audit_max_tokens` to lower per-request cost
 - Use a smaller model for fixes: set `fix_model` to `"claude-sonnet-4-6"`
 
@@ -256,7 +252,7 @@ The loop runs tests both pre-merge and post-merge. If post-merge tests fail, the
 
 ### Diminishing returns triggers too early
 
-Increase the thresholds in `improvement_loop_config.json`:
+Increase the thresholds in `averyloop_config.json`:
 ```json
 {
   "dr_window": 6,
@@ -267,9 +263,9 @@ Increase the thresholds in `improvement_loop_config.json`:
 
 ### Finding the log
 
-Iteration history is in `improvement_loop_log.json` at the repo root. View a summary:
+Iteration history is in `averyloop_log.json` at the repo root. View a summary:
 ```bash
-python -m improvement_loop.loop_tracker summary
+python -m averyloop.loop_tracker summary
 ```
 
 ## Development
@@ -288,7 +284,7 @@ python -m pytest tests/test_evaluator_finding.py -v
 ### Project Structure
 
 ```
-improvement_loop/
+averyloop/
 ├── __init__.py
 ├── project_config.py      # Project-specific YAML config loader
 ├── loop_config.py          # Loop tuning JSON config loader
@@ -297,11 +293,14 @@ improvement_loop/
 ├── loop_tracker.py         # Iteration logging + context generation
 ├── orchestrator_v2.py      # Main loop: audit → fix → test → merge
 ├── agents/
+│   ├── _api.py             # Shared API client + retry logic
 │   ├── auditor.py          # Audit prompt + source file collection
+│   ├── implementer.py      # Fix generation from findings
 │   └── reviewer.py         # Review prompt for patch evaluation
 └── rag/
     ├── chunker.py           # Language-aware code chunking
-    └── indexer.py           # ChromaDB index build + query
+    ├── indexer.py           # ChromaDB index build + query
+    └── retriever.py         # Semantic code retrieval
 ```
 
 ## Contributing

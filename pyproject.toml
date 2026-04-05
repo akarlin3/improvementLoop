@@ -3,7 +3,7 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "code-improvement-loop"
+name = "averyloop"
 version = "2.0.0"
 description = "Autonomous code auditing and improvement framework powered by LLMs"
 readme = "README.md"
@@ -20,7 +20,7 @@ dependencies = [
 test = ["pytest>=7.0"]
 
 [project.scripts]
-improvement-loop = "improvement_loop.orchestrator_v2:main"
+averyloop = "averyloop.orchestrator_v2:main"
 
 [tool.setuptools.packages.find]
-include = ["improvement_loop*"]
+include = ["averyloop*"]

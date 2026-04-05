@@ -54,7 +54,7 @@ class ProjectConfig:
 
 _SEARCH_PATHS = [
     "project_config.yaml",
-    "improvement_loop_project.yaml",
+    "averyloop_project.yaml",
 ]
 
 
@@ -65,7 +65,7 @@ def load_project_config(path: Optional[str] = None) -> ProjectConfig:
         1. Explicit ``path`` argument
         2. ``PROJECT_CONFIG`` environment variable
         3. ``./project_config.yaml``
-        4. ``./improvement_loop_project.yaml``
+        4. ``./averyloop_project.yaml``
 
     If no file is found, returns a default ``ProjectConfig``.
     """

@@ -3,14 +3,14 @@
 import pytest
 from pydantic import ValidationError
 
-from improvement_loop.evaluator import (
+from averyloop.evaluator import (
     Finding, should_continue_loop, check_diminishing_returns,
 )
-from improvement_loop import loop_tracker
-from improvement_loop.loop_config import (
+from averyloop import loop_tracker
+from averyloop.loop_config import (
     LoopConfig, load_loop_config, get_config, reset_config,
 )
-from improvement_loop.project_config import ProjectConfig
+from averyloop.project_config import ProjectConfig
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -377,7 +377,7 @@ class TestLoopConfig:
         import json
         cfg_path = tmp_path / "cfg.json"
         cfg_path.write_text(json.dumps({"exit_strategy": "classic"}))
-        from improvement_loop import loop_config
+        from averyloop import loop_config
         monkeypatch.setattr(loop_config, "CONFIG_PATH", str(cfg_path))
 
         log_file = str(tmp_path / "test_log.json")
@@ -404,7 +404,7 @@ class TestLoopConfig:
         import json
         cfg_path = tmp_path / "cfg.json"
         cfg_path.write_text(json.dumps({"exit_strategy": "diminishing_returns"}))
-        from improvement_loop import loop_config
+        from averyloop import loop_config
         monkeypatch.setattr(loop_config, "CONFIG_PATH", str(cfg_path))
 
         log_file = str(tmp_path / "test_log.json")

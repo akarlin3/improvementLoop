@@ -10,7 +10,7 @@ from typing import List, Literal, Optional
 
 from pydantic import BaseModel, field_validator
 
-from improvement_loop.project_config import get_project_config
+from averyloop.project_config import get_project_config
 
 
 VALID_DIMENSIONS = (
@@ -98,8 +98,8 @@ def _get_client() -> anthropic.Anthropic:
 
     Resolution order: project_config.yaml → loop config JSON → ANTHROPIC_API_KEY env var.
     """
-    from improvement_loop.loop_config import get_config
-    from improvement_loop.project_config import get_project_config
+    from averyloop.loop_config import get_config
+    from averyloop.project_config import get_project_config
     project_cfg = get_project_config()
     loop_cfg = get_config()
     api_key = project_cfg.anthropic_api_key or loop_cfg.anthropic_api_key
@@ -237,7 +237,7 @@ def score_audit(audit_output: str, dry_run: bool = False) -> dict:
             "flags": [],
             "reasoning": "Dry-run mode — skipped API evaluation."
         }
-    from improvement_loop.loop_config import get_config
+    from averyloop.loop_config import get_config
     cfg = get_config()
     client = _get_client()
     full_prompt = _build_judge_prompt()
@@ -286,7 +286,7 @@ def check_diminishing_returns(log: list, cfg=None) -> bool:
     cfg : LoopConfig, optional
         If *None*, the module-level cached config is used.
     """
-    from improvement_loop.loop_config import get_config
+    from averyloop.loop_config import get_config
     if cfg is None:
         cfg = get_config()
 
@@ -346,7 +346,7 @@ def should_continue_loop(scores: dict, findings: List[Finding], dry_run: bool = 
     - ``"diminishing_returns"`` — only the staleness detector
     - ``"both"`` (default) — classic first, then diminishing returns
     """
-    from improvement_loop.loop_config import get_config
+    from averyloop.loop_config import get_config
     cfg = get_config()
 
     if dry_run:
@@ -389,7 +389,7 @@ def should_continue_loop(scores: dict, findings: List[Finding], dry_run: bool = 
 
     # ── Diminishing returns check ────────────────────────────────────────
     if use_dr:
-        from improvement_loop.loop_tracker import load_log
+        from averyloop.loop_tracker import load_log
         if check_diminishing_returns(load_log(), cfg=cfg):
             print(f"⚠️  Diminishing returns detected over last {cfg.dr_window} iterations — stopping loop")
             return False

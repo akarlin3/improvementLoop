@@ -5,8 +5,8 @@ from unittest import mock
 
 import pytest
 
-from improvement_loop import git_utils
-from improvement_loop.project_config import ProjectConfig
+from averyloop import git_utils
+from averyloop.project_config import ProjectConfig
 
 
 # ---------------------------------------------------------------------------
@@ -86,7 +86,7 @@ class TestRunPythonTests:
             test_command="python -m pytest my_tests/ -v",
             test_ignores=["my_tests/test_slow.py"],
         )
-        import improvement_loop.project_config as pc_mod
+        import averyloop.project_config as pc_mod
         monkeypatch.setattr(pc_mod, "_cached_project", cfg)
 
         with mock.patch("subprocess.run") as mock_run:
@@ -105,18 +105,18 @@ class TestRunPythonTests:
 
 class TestCreateBranch:
     def test_raises_if_branch_exists(self):
-        with mock.patch("improvement_loop.git_utils.branch_exists", return_value=True):
+        with mock.patch("averyloop.git_utils.branch_exists", return_value=True):
             with pytest.raises(RuntimeError, match="already exists"):
                 git_utils.create_branch("existing-branch")
 
     def test_calls_checkout_b_with_config_default(self, monkeypatch):
         """When no base is specified, uses ProjectConfig.default_branch."""
         cfg = ProjectConfig(default_branch="develop")
-        import improvement_loop.project_config as pc_mod
+        import averyloop.project_config as pc_mod
         monkeypatch.setattr(pc_mod, "_cached_project", cfg)
 
-        with mock.patch("improvement_loop.git_utils.branch_exists", return_value=False):
-            with mock.patch("improvement_loop.git_utils._run") as mock_run:
+        with mock.patch("averyloop.git_utils.branch_exists", return_value=False):
+            with mock.patch("averyloop.git_utils._run") as mock_run:
                 mock_run.return_value = subprocess.CompletedProcess([], 0)
                 git_utils.create_branch("new-branch")
                 mock_run.assert_called_once_with(
@@ -124,8 +124,8 @@ class TestCreateBranch:
                 )
 
     def test_calls_checkout_b_with_explicit_base(self):
-        with mock.patch("improvement_loop.git_utils.branch_exists", return_value=False):
-            with mock.patch("improvement_loop.git_utils._run") as mock_run:
+        with mock.patch("averyloop.git_utils.branch_exists", return_value=False):
+            with mock.patch("averyloop.git_utils._run") as mock_run:
                 mock_run.return_value = subprocess.CompletedProcess([], 0)
                 git_utils.create_branch("new-branch", base="main")
                 mock_run.assert_called_once_with(
@@ -139,13 +139,13 @@ class TestCreateBranch:
 
 class TestCheckout:
     def test_raises_if_branch_missing(self):
-        with mock.patch("improvement_loop.git_utils.branch_exists", return_value=False):
+        with mock.patch("averyloop.git_utils.branch_exists", return_value=False):
             with pytest.raises(RuntimeError, match="does not exist"):
                 git_utils.checkout("nonexistent")
 
     def test_calls_git_checkout(self):
-        with mock.patch("improvement_loop.git_utils.branch_exists", return_value=True):
-            with mock.patch("improvement_loop.git_utils._run") as mock_run:
+        with mock.patch("averyloop.git_utils.branch_exists", return_value=True):
+            with mock.patch("averyloop.git_utils._run") as mock_run:
                 mock_run.return_value = subprocess.CompletedProcess([], 0)
                 git_utils.checkout("my-branch")
                 mock_run.assert_called_once_with(["git", "checkout", "my-branch"])
@@ -173,12 +173,12 @@ class TestMergeBranch:
                 )
             return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
 
-        with mock.patch("improvement_loop.git_utils._run", side_effect=side_effect):
+        with mock.patch("averyloop.git_utils._run", side_effect=side_effect):
             with pytest.raises(RuntimeError, match="Merge conflict"):
                 git_utils.merge_branch("feat", target="main")
 
     def test_deletes_source_by_default(self):
-        with mock.patch("improvement_loop.git_utils._run") as mock_run:
+        with mock.patch("averyloop.git_utils._run") as mock_run:
             mock_run.return_value = subprocess.CompletedProcess(
                 [], 0, stdout="", stderr=""
             )
@@ -187,7 +187,7 @@ class TestMergeBranch:
             assert ["git", "branch", "-d", "feat"] in calls
 
     def test_skips_delete_when_false(self):
-        with mock.patch("improvement_loop.git_utils._run") as mock_run:
+        with mock.patch("averyloop.git_utils._run") as mock_run:
             mock_run.return_value = subprocess.CompletedProcess(
                 [], 0, stdout="", stderr=""
             )
@@ -198,10 +198,10 @@ class TestMergeBranch:
     def test_uses_config_default_branch_when_no_target(self, monkeypatch):
         """When no target is specified, uses ProjectConfig.default_branch."""
         cfg = ProjectConfig(default_branch="develop")
-        import improvement_loop.project_config as pc_mod
+        import averyloop.project_config as pc_mod
         monkeypatch.setattr(pc_mod, "_cached_project", cfg)
 
-        with mock.patch("improvement_loop.git_utils._run") as mock_run:
+        with mock.patch("averyloop.git_utils._run") as mock_run:
             mock_run.return_value = subprocess.CompletedProcess(
                 [], 0, stdout="", stderr=""
             )
@@ -219,7 +219,7 @@ class TestCommitAll:
         def side_effect(args, *, check=True):
             return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
 
-        with mock.patch("improvement_loop.git_utils._run", side_effect=side_effect) as mock_run:
+        with mock.patch("averyloop.git_utils._run", side_effect=side_effect) as mock_run:
             git_utils.commit_all("msg")
             calls = [c.args[0] for c in mock_run.call_args_list]
             assert ["git", "commit", "-m", "msg"] not in calls
@@ -232,7 +232,7 @@ class TestCommitAll:
                 )
             return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
 
-        with mock.patch("improvement_loop.git_utils._run", side_effect=side_effect) as mock_run:
+        with mock.patch("averyloop.git_utils._run", side_effect=side_effect) as mock_run:
             git_utils.commit_all("my message")
             calls = [c.args[0] for c in mock_run.call_args_list]
             assert ["git", "commit", "-m", "my message"] in calls
@@ -250,7 +250,7 @@ class TestRunSyntaxCheck:
         (src_dir / "broken.py").write_text("for\n")
 
         cfg = ProjectConfig(source_dirs=["src/"])
-        import improvement_loop.project_config as pc_mod
+        import averyloop.project_config as pc_mod
         monkeypatch.setattr(pc_mod, "_cached_project", cfg)
 
         with mock.patch.object(git_utils, "REPO_ROOT", tmp_path):
@@ -267,7 +267,7 @@ class TestRunSyntaxCheck:
         (src_dir / "good.py").write_text("x = 1\n")
 
         cfg = ProjectConfig(source_dirs=["src/"])
-        import improvement_loop.project_config as pc_mod
+        import averyloop.project_config as pc_mod
         monkeypatch.setattr(pc_mod, "_cached_project", cfg)
 
         with mock.patch.object(git_utils, "REPO_ROOT", tmp_path):
@@ -283,7 +283,7 @@ class TestRunSyntaxCheck:
         src_dir.mkdir()
 
         cfg = ProjectConfig(source_dirs=["src/"])
-        import improvement_loop.project_config as pc_mod
+        import averyloop.project_config as pc_mod
         monkeypatch.setattr(pc_mod, "_cached_project", cfg)
 
         with mock.patch.object(git_utils, "REPO_ROOT", tmp_path):
